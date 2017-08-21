@@ -14,6 +14,8 @@ import com.google.api.services.calendar.Calendar
 import com.google.api.services.calendar.CalendarScopes
 import com.google.api.services.calendar.model.Event
 import com.google.api.services.calendar.model.EventDateTime
+import net.fortuna.ical4j.data.CalendarBuilder
+import net.fortuna.ical4j.model.component.VEvent
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -41,12 +43,19 @@ fun main(args: Array<String>) {
     val cal = Calendar.Builder(HTTP, JSON, user).setApplicationName(APP_NAME).build()
 
     cal.CalendarList().list().execute().items.filter { it.summary == "hockn" }.firstOrNull()?.let {
-        val event = Event()
-                .setSummary("auto")
-                .setLocation("Vienna, AT")
-                .setStart(EventDateTime().setDateTime(DateTime("2017-08-21T13:00:00+02:00")))
-                .setEnd(EventDateTime().setDateTime(DateTime("2017-08-21T14:00:00+02:00")))
 
-        cal.events().insert(it.id, event).execute()
+        val ical = CalendarBuilder().build(Files.newBufferedReader(Paths.get("sample.ics")))
+
+        ical.components.forEach { read ->
+            if (read is VEvent) {
+                val event = Event()
+                        .setSummary(read.summary.value)
+                        .setLocation(read.location?.value)
+                        .setStart(EventDateTime().setDateTime(DateTime(read.startDate.date, read.startDate.timeZone)))
+                        .setEnd(EventDateTime().setDateTime(DateTime(read.endDate.date, read.endDate.timeZone)))
+
+                cal.events().insert(it.id, event).execute()
+            }
+        }
     }
 }
